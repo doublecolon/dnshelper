@@ -1,0 +1,209 @@
+
+<html>
+<head>
+<link href="https://yastatic.net/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://yastatic.net/jquery/3.1.1/jquery.min.js"></script>
+</head>
+<body style="padding:15px;">
+
+<div style="background: #EFEFEF;border-bottom:1px solid #CCC;text-align:center;margin:-15px;padding:6px;margin-bottom:10px">
+    <div class="text-muted">
+    DNS HELPER #RTX3000
+    </div>
+
+    <p style="margin:0">
+    <input style="width:100%;border:0;background:transparent;outline:0;text-align:center;color:darkgreen" 
+    id="dnspurl" value="https://www.dns-shop.ru/product/70ce2476f6311b80/videokarta-asus-geforce-rtx-3080-tuf-gaming-tuf-rtx3080-10g-gaming/">
+    </p>
+
+</div>
+
+<p class="hidden">
+<button class="btn btn-default btn-xs" id="clearCart">clear cart</button>
+</p>
+
+<p>
+    <span class="btn">
+    <input id="autoskip" type="checkbox" value="1" checked="checked" title="autoskip"/>
+    <label for="autoskip">Подтверждать заказ</label>
+    </span>
+
+    <button class="btn btn-primary btn-sm" id="import">Начать поиск</button> <span class="text-danger" id="error"></span>
+</p>
+
+<table class="products table table-stripped table-bord1ered"><tr class="first"><td class="text-muted">... <i class="fa-spin fa-spinner fa"></i></td></tr></table>
+
+
+<script>
+
+    'use strict';
+
+    // ---------------
+    //const productUrl = 'https://www.dns-shop.ru/product/ecccfd01ee6a3332/videokarta-palit-geforce-gtx-1660-super-gaming-pro-ne6166s018j9-1160a/';
+    //const productUrl = 'https://www.dns-shop.ru/product/70ce2476f6311b80/videokarta-asus-geforce-rtx-3080-tuf-gaming-tuf-rtx3080-10g-gaming/';
+    // ---------------
+    var productUrl = $('#dnspurl').val();
+
+    // 'change input'
+    $('#dnspurl').on('change', (ev) => productUrl = ev.target.value ); 
+
+    var gWnd;
+    
+    const initialUrl = 'https://www.dns-shop.ru/';
+    var noDelay = 0; 
+    var ptable = $('.products');
+
+    function printTable(v) {
+        let time = (new Date).toLocaleTimeString();
+        let firstRow = ptable.find('tr:first');
+        firstRow.before(
+                 '<tr class="product">' +
+                 '<td>' + time +
+                 '</td>' +
+                 '<td>' + (v.isAvailable?'✔':'✖') + '</a>' +
+                 '</td>' +
+                 '<td>' + v.name +
+                 '</td>' +
+                 '<td>' + v.price +
+                 '</td>' +                 
+                 '</tr>'
+             );
+
+        if (firstRow.is('.first')) {
+            firstRow.hide();
+        }     
+    }
+
+    $('#clearCart').on('click', () => {
+        let wnd = window.open('https://www.dns-shop.ru/order/begin/');
+         if (!wnd) {
+           alert('window.open error');
+         }
+         else {
+           console.log('clean cart start');
+           wnd.addEventListener('load', function () {
+               console.log('clean cart load');
+               wnd.$('.menu-product-wrapper').each(function(k,v){let ctl=$($(v).children().last()); setTimeout(function(){ctl.trigger('click');  console.log(k);}, 2000*k);});               
+           });
+         }                
+    });
+
+    function runImport() {
+         gWnd = window.open(initialUrl);
+         if (!gWnd || !gWnd.document) {
+           alert('window.open error: check popup settings and ensure chrome running with disabled security checks');
+         }
+         else {            
+             gWnd.addEventListener('load', () => {
+                 console.log('--gwnd::onload--');
+                 setTimeout(() => {runNextImport();}, 2000);
+             });            
+         }
+    }
+
+    function runNextImport() {
+         console.log('runNextImport.1');
+
+         gWnd.location.replace(productUrl);
+         setTimeout(() => {
+             console.log('runNextImport.2', gWnd.location.href);            
+             setTimeout(() => {runAddToCart();}, 2000);
+         });
+    }
+
+    function runAddToCart() {
+        console.log('runAddToCart.1');
+//      console.assert(gWnd.rrProductData, 'bad product');
+        
+//         if (!gWnd.rrProductData) {
+//             alert('Bad product');
+//             return;
+//         }
+
+// button-ui button-ui_brand buy-btn btn-cart button-ui_buy-card button-ui_passive
+// button-ui button-ui_blue notify-btn button-ui_passive
+// window.dataLayer.push({"ecommerce":{"detail":{"products":[{"id":"4712215","name":"\u0412\u0438\u0434\u0435\u043e\u043a\u0430\u0440\u0442\u0430 ASUS GeForce RTX 3080 TUF GAMING [TUF-RTX3080-10G-GAMING]","price":84999,"brand
+
+        let product = gWnd.rrProductData;
+
+        // missing rrProductData
+        if (!product) {
+            gWnd.focus();
+            // gWnd.document.hidden = false;
+            // console.log('btn class:', gWnd.document.hidden); // gWnd.$('.btn-cart')[0].className);
+            const ecomm = gWnd.dataLayer[0].ecommerce.detail.products[0];
+            product = {
+                isAvailable: gWnd.$('.buy-btn').length > 0 ? true : false,
+                name: ecomm.name,
+                price: ecomm.price
+            }
+        }
+
+        printTable(product);
+        console.log(product.price, product.name, product.isAvailable ? 'Y' : 'N');
+
+        if (product.isAvailable) {
+            gWnd.$('.buy-btn').trigger('click');
+          
+             setTimeout(() => {   
+                   console.log(gWnd.location.pathname);
+                   if (gWnd.location.pathname === '/order/begin/') {
+                       setTimeout(() => {runCheckout();}, 2000);
+                   } else {                                   
+                       gWnd.location.replace('https://www.dns-shop.ru/order/begin/');              
+                       gWnd.addEventListener('unload', () => {
+                           console.log('runAddToCart.2');
+                           setTimeout(() => {
+                               gWnd.addEventListener('load', () => {
+                                 console.log('runAddToCart.3', gWnd.location.href);            
+                                 setTimeout(() => {runCheckout();}, 2000);
+                               });
+                           }, 1);
+
+                       });
+                   }
+            }, 3000);
+        }
+        else {
+            // product not available --> loop
+            setTimeout(() => runNextImport(),  5000 + Math.ceil(Math.random()*5000));
+        }
+        
+    }
+
+    function runCheckout() {
+        console.log('runCheckout.1');
+        gWnd.$('[data-commerce-action="basket_to_checkout"]').trigger('click');
+
+        // --> /checkout/
+        gWnd.addEventListener('unload', () => {
+           console.log('runCheckout.2');
+           setTimeout(() => {
+               gWnd.addEventListener('load', () => {
+                 console.log('runCheckout.3', gWnd.location.href);   
+                        
+                 setTimeout(() => {
+                     // подтверждение заказа/телефона
+                     gWnd.document.querySelector('.apply-button__ui-button').click();  
+                 }, 2000);
+               });
+           }, 1);
+
+       });
+    }
+  
+
+    $('#import').on('click', function(){
+        runImport(); 
+        $(this).prop('disabled', true).addClass('btn-danger');
+        return;
+    });
+   
+    //@todo 
+    function getDelay()
+    {
+        return 1000 * (noDelay ? 0.15 : Math.ceil(3 + Math.random()*4));
+    }
+
+
+</script>
