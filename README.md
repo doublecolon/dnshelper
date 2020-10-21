@@ -1,2 +1,2 @@
 # dnshelper
-dns-shhop.ru bot rtx3000
+dns-shop.ru bot rtx3000
